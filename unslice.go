@@ -296,9 +296,8 @@ func help() {
 func main() {
 	var (
 		code string
-		err  error
 		pkg  string
-		c    cmd
+		args []string
 	)
 
 	if len(os.Args) < 3 {
@@ -310,32 +309,39 @@ func main() {
 
 	if *write {
 		pkg = os.Args[2]
-		c, err = parseArg(os.Args[3])
+		args = os.Args[3:]
 	} else {
 		pkg = os.Args[1]
-		c, err = parseArg(os.Args[2])
+		args = os.Args[2:]
 	}
 
-	if err != nil {
-		help()
-	}
+	code = fmt.Sprintf("%s\npackage %s\n", header, pkg)
+	for _, arg := range args {
+		var s string
+		c, err := parseArg(arg)
+		if err != nil {
+			fmt.Println("Error parsing argument: " + arg)
+			help()
+			os.Exit(1)
+		}
 
-	switch c.fn {
-	default:
-		help()
-	case cmdMap:
-		code, err = Map(c.input, c.output, c.index)
-	case cmdReduce:
-		code, err = Reduce(c.input, c.output, c.index)
-	case cmdFilter:
-		code, err = Filter(c.input, c.output)
-	}
+		switch c.fn {
+		default:
+			help()
+		case cmdMap:
+			s, err = Map(c.input, c.output, c.index)
+		case cmdReduce:
+			s, err = Reduce(c.input, c.output, c.index)
+		case cmdFilter:
+			s, err = Filter(c.input, c.output)
+		}
 
-	if err != nil {
-		log.Fatalln(err)
-	}
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-	code = fmt.Sprintf("%s\npackage %s\n%s", header, pkg, code)
+		code += s
+	}
 
 	if *write {
 		ioutil.WriteFile(pkg+"_unslice.go", []byte(code), 0755)
